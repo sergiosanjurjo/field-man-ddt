@@ -101,7 +101,8 @@
     "SUPERVISOR SSA",
     "INYECCIONISTA",
     "Operador PL",
-    "Supervisor de Fluidos"
+    "Supervisor de Fluidos",
+    "SUPERVISOR DE INYECCIONISTA"
   ],
   "lugarEquipo": [
     "ACUMULADOR",
