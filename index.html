@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0d1f35" />
+<title>Field-Man DDT</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+--navy: #0d1f35; --navy-mid: #1a3a5c; --navy-light: #1e4976;
+--gold: #c8922a; --gold-light: #e8b84b; --ice: #e8f1fa;
+--bg: #f0f4f9; --surface: #ffffff; --surface2: #f5f8fc;
+--border: rgba(13,31,53,0.10); --border2: rgba(13,31,53,0.06);
+--text: #0d1f35; --text-2: #3d5470; --text-3: #7a92ae;
+--success: #1a7a3c; --danger: #c0392b; --warn: #c8922a;
+--r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+--sh: 0 1px 3px rgba(13,31,53,0.08), 0 4px 16px rgba(13,31,53,0.06);
+--sh-lg: 0 4px 24px rgba(13,31,53,0.14);
+}
+html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+.header { background: var(--navy); padding: 14px 18px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 20px rgba(0,0,0,0.3); }
+.header-logo { width: 40px; height: 40px; flex-shrink: 0; background: linear-gradient(135deg, var(--gold), var(--gold-light)); border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; color: var(--navy); }
+.header-info { flex: 1; }
+.header-info h1 { font-size: 15px; font-weight: 600; color: white; letter-spacing: -0.01em; }
+.header-info p { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 1px; font-weight: 300; }
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.sp-dot { width: 8px; height: 8px; border-radius: 50%; background: #f0c040; box-shadow: 0 0 6px #f0c040; transition: background 0.3s, box-shadow 0.3s; }
+.sp-dot.ok { background: #3ecf6e; box-shadow: 0 0 6px #3ecf6e; }
+.admin-btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.6); border-radius: var(--r-sm); padding: 6px 10px; font-size: 11px; font-family: 'Sora', sans-serif; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 5px; }
+.admin-btn:hover { background: rgba(255,255,255,0.14); color: white; }
+.main { max-width: 500px; margin: 0 auto; padding: 16px 14px 60px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 16px 16px 8px; margin-bottom: 12px; box-shadow: var(--sh); }
+.card-title { font-size: 10px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border2); display: flex; align-items: center; gap: 8px; }
+.card-icon { width: 20px; height: 20px; background: var(--navy); color: white; border-radius: 5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.fg { margin-bottom: 12px; }
+.fg label { display: block; font-size: 11.5px; font-weight: 500; color: var(--text-2); margin-bottom: 5px; }
+.fg label .req { color: var(--danger); }
+.fg select, .fg input, .fg textarea { width: 100%; font-family: 'Sora', sans-serif; font-size: 13.5px; color: var(--text); background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 10px 12px; outline: none; transition: border-color 0.15s, box-shadow 0.15s; -webkit-appearance: none; }
+.fg select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%237a92ae' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 11px center; padding-right: 32px; }
+.fg input:focus, .fg select:focus, .fg textarea:focus { border-color: var(--navy-mid); background: var(--surface); box-shadow: 0 0 0 3px rgba(26,58,92,0.10); }
+.fg input.err, .fg select.err, .fg textarea.err { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(192,57,43,0.10); }
+.fg textarea { resize: vertical; min-height: 80px; line-height: 1.55; }
+.fg input[type="datetime-local"] { font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fixed-val { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 10px 12px; font-size: 13px; color: var(--text-2); font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.fixed-val::before { content: '🔒'; font-size: 11px; opacity: 0.5; }
+.submit-wrap { padding: 4px 0 16px; }
+.submit-btn { width: 100%; background: var(--navy); color: white; border: none; border-radius: var(--r-lg); padding: 15px 24px; font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 18px rgba(13,31,53,0.35); transition: background 0.2s, transform 0.1s; letter-spacing: -0.01em; }
+.submit-btn:hover:not(:disabled) { background: var(--navy-light); }
+.submit-btn:active:not(:disabled) { transform: scale(0.98); }
+.submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.spinner { width: 17px; height: 17px; border: 2px solid rgba(255,255,255,0.25); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.success-screen { display: none; flex-direction: column; align-items: center; text-align: center; padding: 52px 20px; }
+.success-icon { width: 68px; height: 68px; background: #e3f7ec; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 18px; }
+.success-screen h2 { font-size: 21px; font-weight: 600; margin-bottom: 8px; }
+.success-screen p { font-size: 13.5px; color: var(--text-2); line-height: 1.6; max-width: 260px; margin: 0 auto 26px; }
+.new-btn { background: var(--navy); color: white; border: none; border-radius: var(--r-lg); padding: 13px 28px; font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+.new-btn:hover { background: var(--navy-light); }
+.toast { position: fixed; bottom: calc(22px + env(safe-area-inset-bottom,0px)); left: 50%; transform: translateX(-50%); padding: 11px 20px; border-radius: 24px; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 500; color: white; z-index: 9999; display: none; white-space: nowrap; max-width: 90vw; text-align: center; animation: toastIn 0.25s ease; }
+.toast.ok { background: var(--success); }
+.toast.err { background: var(--danger); }
+@keyframes toastIn { from { opacity:0; transform: translateX(-50%) translateY(10px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 500; display: none; align-items: flex-start; justify-content: center; padding: 20px 12px; overflow-y: auto; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border-radius: var(--r-xl); width: 100%; max-width: 480px; box-shadow: var(--sh-lg); overflow: hidden; margin: auto; }
+.modal-header { background: var(--navy); color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
+.modal-header h2 { font-size: 15px; font-weight: 600; }
+.modal-close { background: none; border: none; color: rgba(255,255,255,0.5); font-size: 20px; cursor: pointer; line-height: 1; }
+.modal-close:hover { color: white; }
+.modal-body { padding: 20px; }
+.login-form { display: flex; flex-direction: column; gap: 12px; }
+.login-form input { width: 100%; font-family: 'Sora', sans-serif; font-size: 14px; border: 1px solid var(--border); border-radius: var(--r-md); padding: 11px 14px; background: var(--surface2); outline: none; color: var(--text); }
+.login-form input:focus { border-color: var(--navy-mid); }
+.login-submit { background: var(--navy); color: white; border: none; border-radius: var(--r-md); padding: 12px; font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+.login-submit:hover { background: var(--navy-light); }
+.login-err { font-size: 12px; color: var(--danger); text-align: center; }
+.admin-panel { display: none; }
+.admin-panel.visible { display: block; }
+.admin-tabs { display: flex; gap: 4px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 2px; }
+.atab { padding: 7px 12px; border-radius: var(--r-sm); font-size: 11.5px; font-weight: 500; cursor: pointer; white-space: nowrap; border: 1px solid var(--border); background: var(--surface2); color: var(--text-2); transition: all 0.15s; }
+.atab.active { background: var(--navy); color: white; border-color: var(--navy); }
+.atab-content { display: none; }
+.atab-content.active { display: block; }
+.field-list { list-style: none; max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--r-md); }
+.field-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-bottom: 1px solid var(--border2); font-size: 13px; }
+.field-item:last-child { border-bottom: none; }
+.field-item:nth-child(even) { background: var(--surface2); }
+.del-btn { background: none; border: none; color: var(--text-3); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 4px; transition: all 0.15s; }
+.del-btn:hover { background: #fde8e8; color: var(--danger); }
+.add-row { display: flex; gap: 8px; margin-top: 10px; }
+.add-input { flex: 1; font-family: 'Sora', sans-serif; font-size: 13px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 11px; background: var(--surface2); outline: none; color: var(--text); }
+.add-input:focus { border-color: var(--navy-mid); }
+.add-btn { background: var(--navy); color: white; border: none; border-radius: var(--r-sm); padding: 8px 14px; font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+.add-btn:hover { background: var(--navy-light); }
+.add-btn:disabled, .del-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.admin-save-note { font-size: 11px; color: var(--text-3); margin-top: 10px; text-align: center; }
+.sync-badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; display: inline-flex; align-items: center; gap: 5px; margin-bottom: 12px; }
+.sync-badge.saving { background: #fff3cd; color: #7a5d00; }
+.sync-badge.ok { background: #e3f7ec; color: var(--success); }
+.sync-badge.err { background: #fde8e8; color: var(--danger); }
+</style>
+</head>
+<body>
+<header class="header">
+<div class="header-logo">FM</div>
+<div class="header-info">
+<h1>Field-Man DDT</h1>
+<p>Panamerican Energy · Perforación</p>
+</div>
+<div class="header-actions">
+<div class="sp-dot" id="spDot" title="Estado SharePoint"></div>
+<button class="admin-btn" onclick="openAdmin()">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+Admin
+</button>
+</div>
+</header>
+
+<main class="main">
+<div id="formContainer">
+<div class="card">
+<div class="card-title"><div class="card-icon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>Datos fijos del sector</div>
+<div class="row2">
+<div class="fg"><label>Sector</label><div class="fixed-val">Perforación</div></div>
+<div class="fg"><label>Gerencia</label><div class="fixed-val" style="font-size:11px;">GSJ-Perf., Complet., WO y Pulling</div></div>
+</div>
+</div>
+
+<div class="card">
+<div class="card-title"><div class="card-icon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>Identificación</div>
+<div class="row2">
+<div class="fg"><label>Equipo <span class="req">*</span></label><select id="equipos"><option value="">Seleccionar...</option></select></div>
+<div class="fg"><label>Empresa <span class="req">*</span></label><select id="empresa"><option value="">Seleccionar...</option></select></div>
+</div>
+<div class="fg"><label>Empresa observada <span class="req">*</span></label><select id="empresaObservada"><option value="">Seleccionar...</option></select></div>
+<div class="fg"><label>Rol del observador <span class="req">*</span></label><select id="rolObservador"><option value="">Seleccionar...</option></select></div>
+</div>
+
+<div class="card">
+<div class="card-title"><div class="card-icon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></div>Ubicación y tiempo</div>
+<div class="fg"><label>Fecha y hora <span class="req">*</span></label><input type="datetime-local" id="fechaHora" /></div>
+<div class="fg"><label>Lugar del equipo <span class="req">*</span></label><select id="lugarEquipo"><option value="">Seleccionar...</option></select></div>
+</div>
+
+<div class="card">
+<div class="card-title"><div class="card-icon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>Clasificación</div>
+<div class="row2">
+<div class="fg"><label>Clase <span class="req">*</span></label><select id="clase"><option value="">Seleccionar...</option></select></div>
+<div class="fg"><label>Clase de tarea <span class="req">*</span></label><select id="claseTarea"><option value="">Seleccionar...</option></select></div>
+</div>
+<div class="fg"><label>Consecuencia potencial <span class="req">*</span></label><select id="consecuencia"><option value="">Seleccionar...</option></select></div>
+</div>
+
+<div class="card">
+<div class="card-title"><div class="card-icon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>Descripción</div>
+<div class="fg"><label>Tarea <span class="req">*</span></label><textarea id="tarea" placeholder="Descripción detallada de la tarea observada..."></textarea></div>
+<div class="fg"><label>Comentario</label><textarea id="comentario" placeholder="Observaciones adicionales..."></textarea></div>
+</div>
+
+<div class="submit-wrap">
+<button class="submit-btn" id="submitBtn" onclick="handleSubmit()">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+Enviar a SharePoint
+</button>
+</div>
+</div>
+
+<div class="success-screen" id="successScreen">
+<div class="success-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a7a3c" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg></div>
+<h2>Registro enviado</h2>
+<p>La observación fue guardada correctamente en SharePoint.</p>
+<button class="new-btn" onclick="newRecord()">Nuevo registro</button>
+</div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="adminOverlay">
+<div class="modal">
+<div class="modal-header">
+<h2>⚙️ Panel de administración</h2>
+<button class="modal-close" onclick="closeAdmin()">×</button>
+</div>
+<div class="modal-body">
+<div id="loginSection">
+<p style="font-size:13px;color:var(--text-2);margin-bottom:14px;">Ingresá la contraseña de administrador para continuar.</p>
+<div class="login-form">
+<input type="password" id="adminPass" placeholder="Contraseña" onkeydown="if(event.key==='Enter')checkLogin()" />
+<div class="login-err" id="loginErr"></div>
+<button class="login-submit" onclick="checkLogin()">Ingresar</button>
+</div>
+</div>
+
+<div class="admin-panel" id="adminPanel">
+<div class="sync-badge" id="syncBadge" style="display:none;"></div>
+<div class="admin-tabs" id="adminTabs">
+<div class="atab active" onclick="switchTab('equipos')">Equipos</div>
+<div class="atab" onclick="switchTab('empresa')">Empresa</div>
+<div class="atab" onclick="switchTab('empresaObservada')">Emp. Observada</div>
+<div class="atab" onclick="switchTab('rolObservador')">Rol Obs.</div>
+<div class="atab" onclick="switchTab('lugarEquipo')">Lugar</div>
+<div class="atab" onclick="switchTab('clase')">Clase</div>
+<div class="atab" onclick="switchTab('claseTarea')">Clase Tarea</div>
+<div class="atab" onclick="switchTab('consecuencia')">Consecuencia</div>
+</div>
+<div id="tab-equipos" class="atab-content active"></div>
+<div id="tab-empresa" class="atab-content"></div>
+<div id="tab-empresaObservada" class="atab-content"></div>
+<div id="tab-rolObservador" class="atab-content"></div>
+<div id="tab-lugarEquipo" class="atab-content"></div>
+<div id="tab-clase" class="atab-content"></div>
+<div id="tab-claseTarea" class="atab-content"></div>
+<div id="tab-consecuencia" class="atab-content"></div>
+<p class="admin-save-note">Los cambios se guardan en GitHub y se ven en todos los dispositivos al instante.</p>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════
+   CONFIG — REPO + TOKEN
+   El token es fine-grained, con permiso de Contents
+   (read/write) limitado SOLO a este repositorio.
+══════════════════════════════════════════════ */
+const GH_OWNER = "sergiojesussanjurjo-sudo";
+const GH_REPO  = "field-man-ddt";
+const GH_BRANCH = "main";
+const GH_FILE  = "items.json";
+const GH_TOKEN = "PEGAR_AQUI_EL_TOKEN_GITHUB"; // <-- reemplazar antes de subir
+
+const ADMIN_PASSWORD = "fieldman2025"; // <-- cambiar y avisar a las 5 personas
+
+const FIXED_WEBHOOK = "https://default8cb3c63f29564d28b216acb701237c.25.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f32ca5ac20ea4119bf22e7bdb7785afb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PO3orzLOAQjl8FqO71nX0abr1HIiNbyXXk73u9aRA-o";
+const WEBHOOK = FIXED_WEBHOOK;
+
+const DEFAULTS = {
+  equipos: ["DLS-160","PAE-002","PAE-003","PAE-004","PAE-005","PAE-006","PAE-007","PLANTA DE LODO","TALLER DRILLING"],
+  empresa: ["Field Services","Pan American Energy"],
+  empresaObservada: ["Field Services","Pan American Energy"],
+  rolObservador: ["ATG","SUPERVISOR SSA","JEFE DE EQUIPO"],
+  lugarEquipo: ["BOCA DE POZO","LOCACION","TALLER"],
+  clase: ["Comportamiento inseguro","Condición insegura","Reconocimiento positivo","Suspensión de tarea"],
+  claseTarea: ["PERFORANDO","ENTUBADO","CEMENTACIÓN"],
+  consecuencia: ["CAÍDA DE ALTURA","GOLPE POR OBJETO","OTROS"]
+};
+
+let OPTIONS = {};
+let currentSha = null;     // sha del items.json en GitHub (necesario para sobreescribir)
+let currentTab = "equipos";
+let isAuthenticated = false;
+
+/* ══════════════════════════════════════════════
+   CARGA DE ITEMS DESDE GITHUB (lectura pública, sin token)
+══════════════════════════════════════════════ */
+async function loadOptions() {
+  try {
+    const url = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${GH_FILE}?t=${Date.now()}`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    OPTIONS = await res.json();
+  } catch (e) {
+    console.warn("No se pudo leer items.json de GitHub, usando valores por defecto", e);
+    OPTIONS = JSON.parse(JSON.stringify(DEFAULTS));
+  }
+  Object.keys(DEFAULTS).forEach(k => { if (!OPTIONS[k]) OPTIONS[k] = [...DEFAULTS[k]]; });
+}
+
+/* Obtiene el SHA actual del archivo (requerido por la API de GitHub para poder sobreescribirlo) */
+async function fetchCurrentSha() {
+  const url = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_FILE}?ref=${GH_BRANCH}&t=${Date.now()}`;
+  const res = await fetch(url, { headers: { "Accept": "application/vnd.github+json" } });
+  if (!res.ok) throw new Error("No se pudo obtener el SHA del archivo (HTTP " + res.status + ")");
+  const data = await res.json();
+  return data.sha;
+}
+
+/* Codifica UTF-8 a base64 sin romper acentos/ñ */
+function utf8ToBase64(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+/* Guarda OPTIONS en GitHub vía Contents API */
+async function saveOptionsToGitHub() {
+  setSyncBadge("saving", "Guardando en GitHub...");
+  try {
+    const sha = await fetchCurrentSha();
+    const content = utf8ToBase64(JSON.stringify(OPTIONS, null, 2));
+    const res = await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_FILE}`, {
+      method: "PUT",
+      headers: {
+        "Authorization": `Bearer ${GH_TOKEN}`,
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message: "Actualizar items.json desde panel admin",
+        content: content,
+        sha: sha,
+        branch: GH_BRANCH
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || ("HTTP " + res.status));
+    }
+    setSyncBadge("ok", "✓ Guardado, visible para todos");
+  } catch (e) {
+    setSyncBadge("err", "Error al guardar: " + e.message);
+    showToast("No se pudo guardar en GitHub: " + e.message, "err");
+  }
+}
+
+function setSyncBadge(type, text) {
+  const b = document.getElementById("syncBadge");
+  b.style.display = "inline-flex";
+  b.className = "sync-badge " + type;
+  b.textContent = text;
+  if (type === "ok") setTimeout(() => { b.style.display = "none"; }, 3000);
+}
+
+/* ══════════════════════════════════════════════
+   POPULATE SELECTS
+══════════════════════════════════════════════ */
+function populateSelects() {
+  Object.keys(OPTIONS).forEach(key => {
+    const sel = document.getElementById(key);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Seleccionar...</option>';
+    OPTIONS[key].forEach(v => {
+      const o = document.createElement("option");
+      o.value = o.textContent = v;
+      if (v === cur) o.selected = true;
+      sel.appendChild(o);
+    });
+  });
+}
+
+/* ══════════════════════════════════════════════
+   VALIDATION
+══════════════════════════════════════════════ */
+const REQUIRED_IDS = ["equipos","empresa","empresaObservada","rolObservador","fechaHora","lugarEquipo","clase","claseTarea","consecuencia","tarea"];
+REQUIRED_IDS.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener("change", () => el.classList.remove("err"));
+    el.addEventListener("input", () => el.classList.remove("err"));
+  }
+});
+function validate() {
+  let ok = true;
+  REQUIRED_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || !el.value.trim()) { if (el) el.classList.add("err"); ok = false; }
+    else el.classList.remove("err");
+  });
+  if (!ok) showToast("Completar todos los campos obligatorios (*)", "err");
+  return ok;
+}
+
+/* ══════════════════════════════════════════════
+   SUBMIT
+══════════════════════════════════════════════ */
+async function handleSubmit() {
+  if (!validate()) return;
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Enviando...';
+
+  const payload = {
+    SECTOR: "Perforación",
+    GERENCIA: "GSJ-Perforación, Completación, WO y Pulling",
+    EQUIPOS: document.getElementById("equipos").value,
+    EMPRESA: document.getElementById("empresa").value,
+    EMPRESA_OBSERVADA: document.getElementById("empresaObservada").value,
+    RolObservador: document.getElementById("rolObservador").value,
+    FechaHora: new Date(document.getElementById("fechaHora").value).toISOString(),
+    LugarDelEquipo: document.getElementById("lugarEquipo").value,
+    CLASE: document.getElementById("clase").value,
+    CLASE_DE_TAREA: document.getElementById("claseTarea").value,
+    ConsecuenciaPotencial: document.getElementById("consecuencia").value,
+    COMENTARIO: document.getElementById("comentario").value,
+    Tarea: document.getElementById("tarea").value
+  };
+
+  try {
+    const res = await fetch(WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    if (res.ok || res.status === 202) { showSuccess(); }
+    else { throw new Error("HTTP " + res.status); }
+  } catch (e) {
+    try {
+      await fetch(WEBHOOK, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      showSuccess();
+    } catch (e2) {
+      showToast("Error al enviar: " + e2.message, "err");
+      resetBtn();
+    }
+  }
+}
+function resetBtn() {
+  const b = document.getElementById("submitBtn");
+  b.disabled = false;
+  b.innerHTML = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>Enviar a SharePoint`;
+}
+function showSuccess() {
+  document.getElementById("formContainer").style.display = "none";
+  document.getElementById("successScreen").style.display = "flex";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function newRecord() {
+  document.getElementById("successScreen").style.display = "none";
+  document.getElementById("formContainer").style.display = "block";
+  ["empresa","empresaObservada","equipos","rolObservador","lugarEquipo","clase","claseTarea","consecuencia"]
+    .forEach(id => { const el = document.getElementById(id); if (el) el.selectedIndex = 0; el?.classList.remove("err"); });
+  ["tarea","comentario"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  setNow();
+  resetBtn();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* ══════════════════════════════════════════════
+   ADMIN
+══════════════════════════════════════════════ */
+function openAdmin() {
+  document.getElementById("adminOverlay").classList.add("open");
+  document.getElementById("loginSection").style.display = "block";
+  document.getElementById("adminPanel").classList.remove("visible");
+  document.getElementById("adminPass").value = "";
+  document.getElementById("loginErr").textContent = "";
+  setTimeout(() => document.getElementById("adminPass").focus(), 100);
+}
+function closeAdmin() { document.getElementById("adminOverlay").classList.remove("open"); }
+document.getElementById("adminOverlay").addEventListener("click", e => {
+  if (e.target === document.getElementById("adminOverlay")) closeAdmin();
+});
+function checkLogin() {
+  const val = document.getElementById("adminPass").value;
+  if (val === ADMIN_PASSWORD) {
+    isAuthenticated = true;
+    document.getElementById("loginSection").style.display = "none";
+    document.getElementById("adminPanel").classList.add("visible");
+    renderTab(currentTab);
+  } else {
+    document.getElementById("loginErr").textContent = "Contraseña incorrecta";
+    document.getElementById("adminPass").value = "";
+    document.getElementById("adminPass").focus();
+  }
+}
+function switchTab(key) {
+  currentTab = key;
+  const keys = ["equipos","empresa","empresaObservada","rolObservador","lugarEquipo","clase","claseTarea","consecuencia"];
+  document.querySelectorAll(".atab").forEach((t,i) => t.classList.toggle("active", keys[i] === key));
+  document.querySelectorAll(".atab-content").forEach(c => c.classList.remove("active"));
+  document.getElementById("tab-" + key).classList.add("active");
+  renderTab(key);
+}
+function renderTab(key) {
+  const container = document.getElementById("tab-" + key);
+  if (!container) return;
+  const items = OPTIONS[key] || [];
+  container.innerHTML = `
+    <ul class="field-list" id="list-${key}">
+      ${items.map((v,i) => `
+        <li class="field-item">
+          <span>${v}</span>
+          <button class="del-btn" onclick="delItem('${key}',${i})" title="Eliminar">×</button>
+        </li>`).join("")}
+    </ul>
+    <div class="add-row">
+      <input class="add-input" id="add-${key}" placeholder="Agregar nuevo..." onkeydown="if(event.key==='Enter')addItem('${key}')" />
+      <button class="add-btn" id="addbtn-${key}" onclick="addItem('${key}')">+ Agregar</button>
+    </div>`;
+}
+async function addItem(key) {
+  const input = document.getElementById("add-" + key);
+  const val = input.value.trim();
+  if (!val) return;
+  if (OPTIONS[key].includes(val)) { showToast("Ya existe ese valor", "err"); return; }
+  OPTIONS[key].push(val);
+  populateSelects();
+  renderTab(key);
+  input.value = "";
+  await saveOptionsToGitHub();
+}
+async function delItem(key, idx) {
+  if (!confirm(`¿Eliminar "${OPTIONS[key][idx]}"?`)) return;
+  OPTIONS[key].splice(idx, 1);
+  populateSelects();
+  renderTab(key);
+  await saveOptionsToGitHub();
+}
+
+/* ══════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════ */
+let toastTimer;
+function showToast(msg, type) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.className = "toast " + type; t.style.display = "block";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.style.display = "none", 4000);
+}
+
+/* ══════════════════════════════════════════════
+   HELPERS + INIT
+══════════════════════════════════════════════ */
+function setNow() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  document.getElementById("fechaHora").value = now.toISOString().slice(0,16);
+}
+
+(async function init() {
+  await loadOptions();
+  populateSelects();
+  setNow();
+  document.getElementById("spDot").className = "sp-dot ok";
+})();
+</script>
+</body>
+</html>
