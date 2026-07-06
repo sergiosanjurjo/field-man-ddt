@@ -142,7 +142,6 @@ Admin
 <div class="fg"><label>Empresa observada <span class="req">*</span></label><select id="empresaObservada"><option value="">Seleccionar...</option></select></div>
 <div class="fg"><label>Rol del observador <span class="req">*</span></label><select id="rolObservador"><option value="">Seleccionar...</option></select></div>
 </div>
-
 <div class="card">
 <div class="card-title"><div class="card-icon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></div>Ubicación y tiempo</div>
 <div class="fg"><label>Fecha y hora <span class="req">*</span></label><input type="datetime-local" id="fechaHora" /></div>
@@ -151,17 +150,13 @@ Admin
 
 <div class="card">
 <div class="card-title"><div class="card-icon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>Clasificación</div>
-<div class="row2">
 <div class="fg"><label>Clase <span class="req">*</span></label><select id="clase"><option value="">Seleccionar...</option></select></div>
-<div class="fg"><label>Clase de tarea <span class="req">*</span></label><select id="claseTarea"><option value="">Seleccionar...</option></select></div>
-</div>
 <div class="fg"><label>Consecuencia potencial <span class="req">*</span></label><select id="consecuencia"><option value="">Seleccionar...</option></select></div>
 </div>
 
 <div class="card">
 <div class="card-title"><div class="card-icon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>Descripción</div>
-<div class="fg"><label>Tarea <span class="req">*</span></label><textarea id="tarea" placeholder="Descripción detallada de la tarea observada..."></textarea></div>
-<div class="fg"><label>Comentario</label><textarea id="comentario" placeholder="Observaciones adicionales..."></textarea></div>
+<div class="fg"><label>Comentario <span class="req">*</span></label><textarea id="tarea" placeholder="Descripción detallada de la observación..."></textarea></div>
 </div>
 
 <div class="submit-wrap">
@@ -171,7 +166,6 @@ Enviar a SharePoint
 </button>
 </div>
 </div>
-
 <div class="success-screen" id="successScreen">
 <div class="success-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a7a3c" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg></div>
 <h2>Registro enviado</h2>
@@ -207,7 +201,6 @@ Enviar a SharePoint
 <div class="atab" onclick="switchTab('rolObservador')">Rol Obs.</div>
 <div class="atab" onclick="switchTab('lugarEquipo')">Lugar</div>
 <div class="atab" onclick="switchTab('clase')">Clase</div>
-<div class="atab" onclick="switchTab('claseTarea')">Clase Tarea</div>
 <div class="atab" onclick="switchTab('consecuencia')">Consecuencia</div>
 </div>
 <div id="tab-equipos" class="atab-content active"></div>
@@ -216,14 +209,12 @@ Enviar a SharePoint
 <div id="tab-rolObservador" class="atab-content"></div>
 <div id="tab-lugarEquipo" class="atab-content"></div>
 <div id="tab-clase" class="atab-content"></div>
-<div id="tab-claseTarea" class="atab-content"></div>
 <div id="tab-consecuencia" class="atab-content"></div>
 <p class="admin-save-note">Los cambios se guardan en GitHub y se ven en todos los dispositivos al instante.</p>
 </div>
 </div>
 </div>
 </div>
-
 <script>
 /* ══════════════════════════════════════════════
    CONFIG — REPO + TOKEN
@@ -238,7 +229,7 @@ const GH_FILE  = "items.json";
 // URL del Cloudflare Worker que guarda los cambios en GitHub (el token vive ahí, no acá)
 const WORKER_URL = "https://fielddt-proxy.sergio-sanjurjo.workers.dev";
 
-const ADMIN_PASSWORD = "fieldman2025"; // <-- cambiar y avisar a las 5 personas (debe coincidir con el secret ADMIN_PASSWORD del Worker)
+const ADMIN_PASSWORD = "fieldman2025";
 
 const FIXED_WEBHOOK = "https://default8cb3c63f29564d28b216acb701237c.25.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f32ca5ac20ea4119bf22e7bdb7785afb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PO3orzLOAQjl8FqO71nX0abr1HIiNbyXXk73u9aRA-o";
 const WEBHOOK = FIXED_WEBHOOK;
@@ -250,15 +241,13 @@ const DEFAULTS = {
   rolObservador: ["ATG","SUPERVISOR SSA","JEFE DE EQUIPO"],
   lugarEquipo: ["BOCA DE POZO","LOCACION","TALLER"],
   clase: ["Comportamiento inseguro","Condición insegura","Reconocimiento positivo","Suspensión de tarea"],
-  claseTarea: ["PERFORANDO","ENTUBADO","CEMENTACIÓN"],
   consecuencia: ["CAÍDA DE ALTURA","GOLPE POR OBJETO","OTROS"]
 };
 
 let OPTIONS = {};
-let currentSha = null;     // sha del items.json en GitHub (necesario para sobreescribir)
+let currentSha = null;
 let currentTab = "equipos";
 let isAuthenticated = false;
-
 /* ══════════════════════════════════════════════
    CARGA DE ITEMS DESDE GITHUB (lectura pública, sin token)
 ══════════════════════════════════════════════ */
@@ -300,7 +289,6 @@ function setSyncBadge(type, text) {
   b.textContent = text;
   if (type === "ok") setTimeout(() => { b.style.display = "none"; }, 3000);
 }
-
 /* ══════════════════════════════════════════════
    POPULATE SELECTS
 ══════════════════════════════════════════════ */
@@ -322,7 +310,7 @@ function populateSelects() {
 /* ══════════════════════════════════════════════
    VALIDATION
 ══════════════════════════════════════════════ */
-const REQUIRED_IDS = ["equipos","empresa","empresaObservada","rolObservador","fechaHora","lugarEquipo","clase","claseTarea","consecuencia","tarea"];
+const REQUIRED_IDS = ["equipos","empresa","empresaObservada","rolObservador","fechaHora","lugarEquipo","clase","consecuencia","tarea"];
 REQUIRED_IDS.forEach(id => {
   const el = document.getElementById(id);
   if (el) {
@@ -340,7 +328,6 @@ function validate() {
   if (!ok) showToast("Completar todos los campos obligatorios (*)", "err");
   return ok;
 }
-
 /* ══════════════════════════════════════════════
    SUBMIT
 ══════════════════════════════════════════════ */
@@ -360,9 +347,9 @@ async function handleSubmit() {
     FechaHora: new Date(document.getElementById("fechaHora").value).toISOString(),
     LugarDelEquipo: document.getElementById("lugarEquipo").value,
     CLASE: document.getElementById("clase").value,
-    CLASE_DE_TAREA: document.getElementById("claseTarea").value,
+    CLASE_DE_TAREA: "",
     ConsecuenciaPotencial: document.getElementById("consecuencia").value,
-    COMENTARIO: document.getElementById("comentario").value,
+    COMENTARIO: document.getElementById("tarea").value,
     Tarea: document.getElementById("tarea").value
   };
 
@@ -393,14 +380,13 @@ function showSuccess() {
 function newRecord() {
   document.getElementById("successScreen").style.display = "none";
   document.getElementById("formContainer").style.display = "block";
-  ["empresa","empresaObservada","equipos","rolObservador","lugarEquipo","clase","claseTarea","consecuencia"]
+  ["empresa","empresaObservada","equipos","rolObservador","lugarEquipo","clase","consecuencia"]
     .forEach(id => { const el = document.getElementById(id); if (el) el.selectedIndex = 0; el?.classList.remove("err"); });
-  ["tarea","comentario"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  ["tarea"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
   setNow();
   resetBtn();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
-
 /* ══════════════════════════════════════════════
    ADMIN
 ══════════════════════════════════════════════ */
@@ -431,7 +417,7 @@ function checkLogin() {
 }
 function switchTab(key) {
   currentTab = key;
-  const keys = ["equipos","empresa","empresaObservada","rolObservador","lugarEquipo","clase","claseTarea","consecuencia"];
+  const keys = ["equipos","empresa","empresaObservada","rolObservador","lugarEquipo","clase","consecuencia"];
   document.querySelectorAll(".atab").forEach((t,i) => t.classList.toggle("active", keys[i] === key));
   document.querySelectorAll(".atab-content").forEach(c => c.classList.remove("active"));
   document.getElementById("tab-" + key).classList.add("active");
@@ -472,7 +458,6 @@ async function delItem(key, idx) {
   renderTab(key);
   await saveOptionsToGitHub();
 }
-
 /* ══════════════════════════════════════════════
    TOAST
 ══════════════════════════════════════════════ */
