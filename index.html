@@ -151,6 +151,7 @@ Admin
 <div class="card">
 <div class="card-title"><div class="card-icon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>Clasificación</div>
 <div class="fg"><label>Clase <span class="req">*</span></label><select id="clase"><option value="">Seleccionar...</option></select></div>
+<div class="fg"><label>Clase de tarea <span class="req">*</span></label><select id="claseTarea"><option value="">Seleccionar...</option></select></div>
 <div class="fg"><label>Consecuencia potencial <span class="req">*</span></label><select id="consecuencia"><option value="">Seleccionar...</option></select></div>
 </div>
 
@@ -201,6 +202,7 @@ Enviar a SharePoint
 <div class="atab" onclick="switchTab('rolObservador')">Rol Obs.</div>
 <div class="atab" onclick="switchTab('lugarEquipo')">Lugar</div>
 <div class="atab" onclick="switchTab('clase')">Clase</div>
+<div class="atab" onclick="switchTab('claseTarea')">Clase de tarea</div>
 <div class="atab" onclick="switchTab('consecuencia')">Consecuencia</div>
 </div>
 <div id="tab-equipos" class="atab-content active"></div>
@@ -209,6 +211,7 @@ Enviar a SharePoint
 <div id="tab-rolObservador" class="atab-content"></div>
 <div id="tab-lugarEquipo" class="atab-content"></div>
 <div id="tab-clase" class="atab-content"></div>
+<div id="tab-claseTarea" class="atab-content"></div>
 <div id="tab-consecuencia" class="atab-content"></div>
 <p class="admin-save-note">Los cambios se guardan en GitHub y se ven en todos los dispositivos al instante.</p>
 </div>
@@ -226,13 +229,46 @@ const GH_REPO  = "field-man-ddt";
 const GH_BRANCH = "main";
 const GH_FILE  = "items.json";
 
-// URL del Cloudflare Worker que guarda los cambios en GitHub (el token vive ahí, no acá)
-const WORKER_URL = "https://fielddt-proxy.sergio-sanjurjo.workers.dev";
+// URL del Cloudflare Worker. El worker guarda el token de GitHub y el webhook de
+// SharePoint como SECRETOS del lado del servidor. Nada sensible vive en este HTML.
+const WORKER_URL = "https://fielddt-proxy.pae-development.workers.dev";
 
-const ADMIN_PASSWORD = "fieldman2025";
+// ⚠️ SIN secretos embebidos:
+//   - La contraseña de admin se valida en el Worker (/login), no acá.
+//   - El webhook de SharePoint vive en el Worker (/submit), no acá.
+// El usuario común NO necesita login: abre el QR y carga directamente.
+// El login sólo se pide para el panel de administración.
 
-const FIXED_WEBHOOK = "https://default8cb3c63f29564d28b216acb701237c.25.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f32ca5ac20ea4119bf22e7bdb7785afb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PO3orzLOAQjl8FqO71nX0abr1HIiNbyXXk73u9aRA-o";
-const WEBHOOK = FIXED_WEBHOOK;
+/* ══════════════════════════════════════════════
+   AUTH — sólo para el panel de administración.
+   El Worker valida la contraseña y devuelve un token temporal.
+══════════════════════════════════════════════ */
+const Auth = {
+  token: null, exp: 0,
+  async login(password) {
+    const res = await fetch(WORKER_URL + "/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+    this.token = data.token; this.exp = data.exp;
+    sessionStorage.setItem("fmddt_auth", JSON.stringify({ token: data.token, exp: data.exp }));
+    return data;
+  },
+  restore() {
+    try {
+      const s = JSON.parse(sessionStorage.getItem("fmddt_auth") || "null");
+      if (s && s.token && s.exp > Math.floor(Date.now() / 1000)) {
+        this.token = s.token; this.exp = s.exp; return true;
+      }
+    } catch (e) {}
+    return false;
+  },
+  valid() { return !!this.token && this.exp > Math.floor(Date.now() / 1000); },
+  logout() { this.token = null; this.exp = 0; sessionStorage.removeItem("fmddt_auth"); }
+};
 
 const DEFAULTS = {
   equipos: ["DLS-160","PAE-002","PAE-003","PAE-004","PAE-005","PAE-006","PAE-007","PLANTA DE LODO","TALLER DRILLING"],
@@ -241,45 +277,85 @@ const DEFAULTS = {
   rolObservador: ["ATG","SUPERVISOR SSA","JEFE DE EQUIPO"],
   lugarEquipo: ["BOCA DE POZO","LOCACION","TALLER"],
   clase: ["Comportamiento inseguro","Condición insegura","Reconocimiento positivo","Suspensión de tarea"],
+  claseTarea: ["PERFORANDO","CEMENTACIÓN","ENTUBADO","IZAJE","MANTENIMIENTO DE EQUIPOS","DTM","OTROS"],
   consecuencia: ["CAÍDA DE ALTURA","GOLPE POR OBJETO","OTROS"]
 };
 
 let OPTIONS = {};
-let currentSha = null;
 let currentTab = "equipos";
-let isAuthenticated = false;
 /* ══════════════════════════════════════════════
    CARGA DE ITEMS DESDE GITHUB (lectura pública, sin token)
 ══════════════════════════════════════════════ */
 async function loadOptions() {
+  let loadedOk = false;
   try {
     const url = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${GH_FILE}?t=${Date.now()}`;
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    OPTIONS = await res.json();
+    const parsed = await res.json();
+    if (parsed && typeof parsed === "object") { OPTIONS = parsed; loadedOk = true; }
+    else throw new Error("Formato inesperado");
   } catch (e) {
     console.warn("No se pudo leer items.json de GitHub, usando valores por defecto", e);
     OPTIONS = JSON.parse(JSON.stringify(DEFAULTS));
   }
-  Object.keys(DEFAULTS).forEach(k => { if (!OPTIONS[k]) OPTIONS[k] = [...DEFAULTS[k]]; });
+  // Saneamiento: garantizar que cada clave exista y sea un array de strings.
+  Object.keys(DEFAULTS).forEach(k => {
+    if (!Array.isArray(OPTIONS[k])) {
+      OPTIONS[k] = [...DEFAULTS[k]];
+    } else {
+      OPTIONS[k] = OPTIONS[k]
+        .filter(v => typeof v === "string" && v.trim() !== "")
+        .map(v => v.trim());
+      if (OPTIONS[k].length === 0) OPTIONS[k] = [...DEFAULTS[k]];
+    }
+  });
+  return loadedOk;
 }
 
-/* Guarda OPTIONS llamando al Worker (que tiene el token guardado en secreto) */
+/* Guarda OPTIONS llamando al Worker con el token de sesión del admin.
+   El Worker valida el token y escribe items.json en GitHub con SU token secreto. */
 async function saveOptionsToGitHub() {
+  if (!Auth.valid()) {
+    setSyncBadge("err", "Sesión expirada");
+    showToast("Sesión expirada, ingresá de nuevo", "err");
+    forceRelogin();
+    return false;
+  }
   setSyncBadge("saving", "Guardando en GitHub...");
   try {
-    const res = await fetch(WORKER_URL, {
+    const res = await fetch(WORKER_URL + "/items", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: ADMIN_PASSWORD, items: OPTIONS })
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + Auth.token
+      },
+      body: JSON.stringify({ items: OPTIONS })
     });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 401) {
+      Auth.logout();
+      setSyncBadge("err", "Sesión expirada");
+      showToast("Sesión expirada, ingresá de nuevo", "err");
+      forceRelogin();
+      return false;
+    }
     if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
     setSyncBadge("ok", "✓ Guardado, visible para todos");
+    return true;
   } catch (e) {
     setSyncBadge("err", "Error al guardar: " + e.message);
     showToast("No se pudo guardar: " + e.message, "err");
+    return false;
   }
+}
+
+/* Vuelve a mostrar la pantalla de login dentro del modal de admin */
+function forceRelogin() {
+  document.getElementById("loginSection").style.display = "block";
+  document.getElementById("adminPanel").classList.remove("visible");
+  document.getElementById("adminPass").value = "";
+  document.getElementById("loginErr").textContent = "";
 }
 
 function setSyncBadge(type, text) {
@@ -310,7 +386,7 @@ function populateSelects() {
 /* ══════════════════════════════════════════════
    VALIDATION
 ══════════════════════════════════════════════ */
-const REQUIRED_IDS = ["equipos","empresa","empresaObservada","rolObservador","fechaHora","lugarEquipo","clase","consecuencia","tarea"];
+const REQUIRED_IDS = ["equipos","empresa","empresaObservada","rolObservador","fechaHora","lugarEquipo","clase","claseTarea","consecuencia","tarea"];
 REQUIRED_IDS.forEach(id => {
   const el = document.getElementById(id);
   if (el) {
@@ -333,10 +409,21 @@ function validate() {
 ══════════════════════════════════════════════ */
 async function handleSubmit() {
   if (!validate()) return;
+
+  // Validar la fecha ANTES de deshabilitar el botón, para dar mensaje claro.
+  const fechaRaw = document.getElementById("fechaHora").value;
+  const fechaObj = new Date(fechaRaw);
+  if (!fechaRaw || isNaN(fechaObj.getTime())) {
+    document.getElementById("fechaHora").classList.add("err");
+    showToast("La fecha y hora no es válida", "err");
+    return;
+  }
+
   const btn = document.getElementById("submitBtn");
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Enviando...';
 
+  const comentario = document.getElementById("tarea").value;
   const payload = {
     SECTOR: "Perforación",
     GERENCIA: "GSJ-Perforación, Completación, WO y Pulling",
@@ -344,27 +431,40 @@ async function handleSubmit() {
     EMPRESA: document.getElementById("empresa").value,
     EMPRESA_OBSERVADA: document.getElementById("empresaObservada").value,
     RolObservador: document.getElementById("rolObservador").value,
-    FechaHora: new Date(document.getElementById("fechaHora").value).toISOString(),
+    FechaHora: fechaObj.toISOString(),
     LugarDelEquipo: document.getElementById("lugarEquipo").value,
     CLASE: document.getElementById("clase").value,
-    CLASE_DE_TAREA: "",
+    CLASE_DE_TAREA: document.getElementById("claseTarea").value,
     ConsecuenciaPotencial: document.getElementById("consecuencia").value,
-    COMENTARIO: document.getElementById("tarea").value,
-    Tarea: document.getElementById("tarea").value
+    COMENTARIO: comentario,
+    Tarea: comentario
   };
 
+  // El envío pasa por el Worker (/submit), que reenvía al webhook de SharePoint
+  // usando la firma guardada como secreto del lado servidor. No hay fallback
+  // no-cors: si falla, se informa el error real y NO se muestra éxito falso.
+  // Timeout de 20s para que el botón no quede colgado si la red no responde.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
   try {
-    const res = await fetch(WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (res.ok || res.status === 202) { showSuccess(); }
-    else { throw new Error("HTTP " + res.status); }
-  } catch (e) {
-    try {
-      await fetch(WEBHOOK, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const res = await fetch(WORKER_URL + "/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (res.ok || res.status === 202) {
       showSuccess();
-    } catch (e2) {
-      showToast("Error al enviar: " + e2.message, "err");
-      resetBtn();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || ("HTTP " + res.status));
     }
+  } catch (e) {
+    clearTimeout(timeout);
+    const msg = e.name === "AbortError" ? "Tiempo de espera agotado, revisá la conexión" : e.message;
+    showToast("Error al enviar: " + msg, "err");
+    resetBtn();
   }
 }
 function resetBtn() {
@@ -380,9 +480,20 @@ function showSuccess() {
 function newRecord() {
   document.getElementById("successScreen").style.display = "none";
   document.getElementById("formContainer").style.display = "block";
-  ["empresa","empresaObservada","equipos","rolObservador","lugarEquipo","clase","consecuencia"]
-    .forEach(id => { const el = document.getElementById(id); if (el) el.selectedIndex = 0; el?.classList.remove("err"); });
-  ["tarea"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  // Resetear selects
+  ["empresa","empresaObservada","equipos","rolObservador","lugarEquipo","clase","claseTarea","consecuencia"]
+    .forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.selectedIndex = 0;
+    });
+  // Limpiar el comentario
+  const tarea = document.getElementById("tarea");
+  if (tarea) tarea.value = "";
+  // Limpiar el estado de error de TODOS los campos obligatorios (incluye fecha y comentario)
+  REQUIRED_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove("err");
+  });
   setNow();
   resetBtn();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -392,6 +503,13 @@ function newRecord() {
 ══════════════════════════════════════════════ */
 function openAdmin() {
   document.getElementById("adminOverlay").classList.add("open");
+  // Si ya hay una sesión válida (token no vencido), abrir directo el panel.
+  if (Auth.valid()) {
+    document.getElementById("loginSection").style.display = "none";
+    document.getElementById("adminPanel").classList.add("visible");
+    renderTab(currentTab);
+    return;
+  }
   document.getElementById("loginSection").style.display = "block";
   document.getElementById("adminPanel").classList.remove("visible");
   document.getElementById("adminPass").value = "";
@@ -402,26 +520,49 @@ function closeAdmin() { document.getElementById("adminOverlay").classList.remove
 document.getElementById("adminOverlay").addEventListener("click", e => {
   if (e.target === document.getElementById("adminOverlay")) closeAdmin();
 });
-function checkLogin() {
+async function checkLogin() {
   const val = document.getElementById("adminPass").value;
-  if (val === ADMIN_PASSWORD) {
-    isAuthenticated = true;
+  const errEl = document.getElementById("loginErr");
+  const btn = document.querySelector(".login-submit");
+  if (!val) { errEl.textContent = "Ingresá la contraseña"; return; }
+
+  errEl.textContent = "";
+  const prevTxt = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Verificando...";
+  try {
+    await Auth.login(val);
     document.getElementById("loginSection").style.display = "none";
     document.getElementById("adminPanel").classList.add("visible");
     renderTab(currentTab);
-  } else {
-    document.getElementById("loginErr").textContent = "Contraseña incorrecta";
+  } catch (e) {
+    // El Worker responde 401 con {error:"..."} si la contraseña es incorrecta.
+    errEl.textContent = /401|incorrect|inv[aá]lid/i.test(e.message)
+      ? "Contraseña incorrecta"
+      : ("Error: " + e.message);
     document.getElementById("adminPass").value = "";
     document.getElementById("adminPass").focus();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevTxt;
   }
 }
 function switchTab(key) {
   currentTab = key;
-  const keys = ["equipos","empresa","empresaObservada","rolObservador","lugarEquipo","clase","consecuencia"];
+  const keys = ["equipos","empresa","empresaObservada","rolObservador","lugarEquipo","clase","claseTarea","consecuencia"];
   document.querySelectorAll(".atab").forEach((t,i) => t.classList.toggle("active", keys[i] === key));
   document.querySelectorAll(".atab-content").forEach(c => c.classList.remove("active"));
   document.getElementById("tab-" + key).classList.add("active");
   renderTab(key);
+}
+/* Escapa texto para insertarlo de forma segura como contenido HTML */
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 function renderTab(key) {
   const container = document.getElementById("tab-" + key);
@@ -431,32 +572,59 @@ function renderTab(key) {
     <ul class="field-list" id="list-${key}">
       ${items.map((v,i) => `
         <li class="field-item">
-          <span>${v}</span>
-          <button class="del-btn" onclick="delItem('${key}',${i})" title="Eliminar">×</button>
+          <span>${escapeHtml(v)}</span>
+          <button class="del-btn" data-key="${escapeHtml(key)}" data-idx="${i}" title="Eliminar">×</button>
         </li>`).join("")}
     </ul>
     <div class="add-row">
-      <input class="add-input" id="add-${key}" placeholder="Agregar nuevo..." onkeydown="if(event.key==='Enter')addItem('${key}')" />
-      <button class="add-btn" id="addbtn-${key}" onclick="addItem('${key}')">+ Agregar</button>
+      <input class="add-input" id="add-${key}" placeholder="Agregar nuevo..." />
+      <button class="add-btn" id="addbtn-${key}">+ Agregar</button>
     </div>`;
+  // Listeners (sin interpolar valores dentro de atributos onclick)
+  container.querySelectorAll(".del-btn").forEach(btn => {
+    btn.addEventListener("click", () => delItem(btn.dataset.key, parseInt(btn.dataset.idx, 10)));
+  });
+  const input = container.querySelector("#add-" + key);
+  input.addEventListener("keydown", e => { if (e.key === "Enter") addItem(key); });
+  container.querySelector("#addbtn-" + key).addEventListener("click", () => addItem(key));
 }
 async function addItem(key) {
   const input = document.getElementById("add-" + key);
   const val = input.value.trim();
   if (!val) return;
-  if (OPTIONS[key].includes(val)) { showToast("Ya existe ese valor", "err"); return; }
+  if (OPTIONS[key].some(v => v.toLowerCase() === val.toLowerCase())) {
+    showToast("Ya existe ese valor", "err");
+    return;
+  }
   OPTIONS[key].push(val);
   populateSelects();
   renderTab(key);
   input.value = "";
-  await saveOptionsToGitHub();
+  const ok = await saveOptionsToGitHub();
+  if (!ok) {
+    // Revertir el cambio local si no se pudo persistir en GitHub
+    const i = OPTIONS[key].indexOf(val);
+    if (i !== -1) OPTIONS[key].splice(i, 1);
+    populateSelects();
+    renderTab(key);
+  }
 }
 async function delItem(key, idx) {
-  if (!confirm(`¿Eliminar "${OPTIONS[key][idx]}"?`)) return;
+  const removedVal = OPTIONS[key][idx];
+  if (!confirm(`¿Eliminar "${removedVal}"?`)) return;
   OPTIONS[key].splice(idx, 1);
+  // Si el valor borrado estaba seleccionado en el formulario, limpiar esa selección.
+  const sel = document.getElementById(key);
+  if (sel && sel.value === removedVal) sel.value = "";
   populateSelects();
   renderTab(key);
-  await saveOptionsToGitHub();
+  const ok = await saveOptionsToGitHub();
+  if (!ok) {
+    // Revertir el borrado local si no se pudo persistir en GitHub
+    OPTIONS[key].splice(idx, 0, removedVal);
+    populateSelects();
+    renderTab(key);
+  }
 }
 /* ══════════════════════════════════════════════
    TOAST
@@ -479,10 +647,20 @@ function setNow() {
 }
 
 (async function init() {
-  await loadOptions();
+  // Restaurar sesión de admin si el token aún es válido (no obliga a re-loguear).
+  Auth.restore();
+  const dot = document.getElementById("spDot");
+  const loadedOk = await loadOptions();
   populateSelects();
   setNow();
-  document.getElementById("spDot").className = "sp-dot ok";
+  // El indicador refleja el estado REAL de la conexión con GitHub (config).
+  if (loadedOk) {
+    dot.className = "sp-dot ok";
+    dot.title = "Configuración sincronizada";
+  } else {
+    dot.className = "sp-dot";
+    dot.title = "Sin conexión con GitHub — usando valores por defecto";
+  }
 })();
 </script>
 </body>
