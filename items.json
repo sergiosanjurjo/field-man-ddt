@@ -199,7 +199,8 @@
     "TRANSPORTE DE MATERIALES",
     "USO DE HIDROLAVADORA",
     "WIRE LINE",
-    "Tarea Critica_ MONTAR Y DESMONTAR BOP"
+    "Tarea Critica_ MONTAR Y DESMONTAR BOP",
+    "Tarea Critica _ARMADO DE DESARMADO DE BHA"
   ],
   "consecuencia": [
     "APRISIONAMIENTO ENTRE OBJETOS PESADOS",
