@@ -198,7 +198,8 @@
     "Tareas Taller Drilling",
     "TRANSPORTE DE MATERIALES",
     "USO DE HIDROLAVADORA",
-    "WIRE LINE"
+    "WIRE LINE",
+    "Tarea Critica_ MONTAR Y DESMONTAR BOP"
   ],
   "consecuencia": [
     "APRISIONAMIENTO ENTRE OBJETOS PESADOS",
