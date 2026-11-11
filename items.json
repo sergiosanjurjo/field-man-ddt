@@ -157,7 +157,8 @@
     "TRAILER VIVIENDA",
     "TRAILER WAR ROOM",
     "UTILITY",
-    "VFH"
+    "VFH",
+    "ZONA DE CAMPAMENTO"
   ],
   "clase": [
     "Comportamiento inseguro",
